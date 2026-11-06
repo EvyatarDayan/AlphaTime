@@ -117,6 +117,8 @@ struct ManualColorPickerSheet: View {
                 .frame(width: width)
                 .fixedSize(horizontal: false, vertical: true)
                 .background(manualSheetColor, in: RoundedRectangle(cornerRadius: 20))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .compositingGroup()
                 .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
@@ -254,7 +256,7 @@ struct ManualColorPickerSheet: View {
                     .frame(width: previewWidth, height: 88)
                 }
                 Text(examplePhrase)
-                    .font(fontOption.font(size: 24, language: language, bold: language != .hebrew))
+                    .font(fontOption.font(size: 30, language: language, bold: language != .hebrew))
                     .foregroundStyle(exampleText)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -564,10 +566,14 @@ private struct BackgroundImagePickerDialog: View {
     let onSelect: (Int) -> Void
     let onDismiss: () -> Void
 
+    @State private var draftIndex = 0
+
     private let rows: [[Int]] = [
         [1, 2, 3, 4],
         [5, 6, 7, 8]
     ]
+
+    private var hasChanges: Bool { draftIndex != selectedIndex }
 
     var body: some View {
         ZStack {
@@ -576,34 +582,12 @@ private struct BackgroundImagePickerDialog: View {
                 .onTapGesture(perform: onDismiss)
 
             GeometryReader { geo in
-                let width = min(geo.size.width * 0.66, geo.size.width - 40)
+                let width = min(geo.size.width * 0.72, geo.size.width - 40)
                 VStack(spacing: 12) {
                     Text("Backgrounds")
-                        .font(UIChromeFont.nunito(size: 17, weight: .semibold))
+                        .font(UIChromeFont.nunito(size: 22, weight: .semibold))
                         .foregroundStyle(manualSettingsText)
                         .frame(maxWidth: .infinity)
-
-                    Button {
-                        onSelect(0)
-                    } label: {
-                        Text("Solid color")
-                            .font(UIChromeFont.nunito(size: 13, weight: .medium))
-                            .foregroundStyle(manualSettingsText)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 36)
-                            .background(
-                                selectedIndex == 0 ? Color(hex: "EAF3FF") : Color.white,
-                                in: RoundedRectangle(cornerRadius: 10)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(
-                                        selectedIndex == 0 ? Color(hex: "007AFF") : Color.black.opacity(0.10),
-                                        lineWidth: selectedIndex == 0 ? 2 : 1
-                                    )
-                            )
-                    }
-                    .buttonStyle(.plain)
 
                     VStack(spacing: 10) {
                         ForEach(rows, id: \.self) { row in
@@ -615,33 +599,54 @@ private struct BackgroundImagePickerDialog: View {
                         }
                     }
 
-                    Button(action: onDismiss) {
-                        Text("Close")
-                            .font(UIChromeFont.nunito(size: 15, weight: .medium))
-                            .foregroundStyle(manualSettingsText)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
-                            .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.black.opacity(0.12), lineWidth: 1)
-                            )
+                    HStack(spacing: 12) {
+                        Button(action: onDismiss) {
+                            Text("Cancel")
+                                .font(UIChromeFont.nunito(size: 18, weight: .medium))
+                                .foregroundStyle(manualSettingsText)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.black.opacity(0.12), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            onSelect(draftIndex)
+                        } label: {
+                            Text(hasChanges ? "Save & Apply" : "Apply")
+                                .font(UIChromeFont.nunito(size: 18, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(manualSettingsText, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
                 }
                 .padding(16)
                 .frame(width: width)
                 .background(manualSheetColor, in: RoundedRectangle(cornerRadius: 20))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .compositingGroup()
                 .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
         }
+        .onAppear {
+            draftIndex = selectedIndex == 0 ? 1 : selectedIndex
+        }
     }
 
     private func backgroundCell(_ index: Int) -> some View {
-        let selected = selectedIndex == index
+        let selected = draftIndex == index
         return Button {
-            onSelect(index)
+            draftIndex = index
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)

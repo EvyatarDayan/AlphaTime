@@ -7,6 +7,7 @@ import SwiftUI
 
 struct WordClockView: View {
     @ObservedObject var settings: SettingsStore
+    var onClose: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -222,7 +223,11 @@ struct WordClockView: View {
 
     private var closeButton: some View {
         Button {
-            dismiss()
+            if let onClose {
+                onClose()
+            } else {
+                dismiss()
+            }
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 20, weight: .bold))

@@ -9,6 +9,7 @@ private let settingsBackground = Color(hex: WordClockSettings.defaultBackgroundH
 private let settingsText = Color(hex: WordClockSettings.defaultTextHex)
 private let buttonSurface = Color(hex: "FFFDF8")
 private let buttonStroke = Color.black.opacity(0.10)
+private let selectionRowStroke = Color.black.opacity(0.22)
 private let selectedFill = Color(hex: "EAF3FF")
 private let selectedStroke = Color(hex: "007AFF")
 private let accentBlue = Color(hex: "007AFF")
@@ -304,6 +305,7 @@ private struct SettingsPopupScaffold<Content: View>: View {
     let onApply: () -> Void
     var previewTopPadding: CGFloat = 36
     var previewAnimateMode: PreviewAnimateMode = .text
+    var showsPreviewDivider: Bool = true
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -327,11 +329,13 @@ private struct SettingsPopupScaffold<Content: View>: View {
                     }
                     .padding(.horizontal, 14)
 
-                    Rectangle()
-                        .fill(buttonStroke)
-                        .frame(height: 1)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 24)
+                    if showsPreviewDivider {
+                        Rectangle()
+                            .fill(buttonStroke)
+                            .frame(height: 1)
+                            .padding(.horizontal, 14)
+                            .padding(.top, 24)
+                    }
 
                     VStack(spacing: popupButtonGap) {
                         SettingsLivePreview(
@@ -373,6 +377,9 @@ private struct SettingsPopupScaffold<Content: View>: View {
                 .frame(width: width)
                 .fixedSize(horizontal: false, vertical: true)
                 .background(sheetColor, in: RoundedRectangle(cornerRadius: popupCorner))
+                .clipShape(RoundedRectangle(cornerRadius: popupCorner))
+                // Flatten first so the dialog shadow isn't painted onto every row.
+                .compositingGroup()
                 .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
@@ -420,7 +427,7 @@ private struct SettingsLivePreview: View {
                     )
                 }
                 Text(previewPhrase)
-                    .font(fontOption.font(size: 24, language: language, bold: language != .hebrew))
+                    .font(fontOption.font(size: 30, language: language, bold: language != .hebrew))
                     .foregroundStyle(textColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -469,12 +476,37 @@ private struct HalfWidthCentered<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        GeometryReader { geo in
+        HStack {
+            Spacer(minLength: 0)
             content()
-                .frame(width: geo.size.width * 0.5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                .containerRelativeFrame(.horizontal) { width, _ in width * 0.5 }
+            Spacer(minLength: 0)
         }
         .frame(height: popupButtonHeight)
+    }
+}
+
+private struct SelectionRowChrome<Content: View>: View {
+    let selected: Bool
+    let action: () -> Void
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        // Avoid SwiftUI `Button` — on newer iOS it can paint an elevation shadow
+        // that `.shadow(.clear)` cannot remove.
+        ZStack {
+            RoundedRectangle(cornerRadius: popupButtonCorner)
+                .fill(selected ? selectedFill : Color.white)
+            RoundedRectangle(cornerRadius: popupButtonCorner)
+                .stroke(selected ? selectedStroke : Color.black.opacity(0.28), lineWidth: 1)
+            content()
+                .padding(.horizontal, 14)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: popupButtonHeight)
+        .contentShape(RoundedRectangle(cornerRadius: popupButtonCorner))
+        .onTapGesture(perform: action)
     }
 }
 
@@ -521,7 +553,7 @@ private struct LanguagePickerDialog: View {
         selected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        SelectionRowChrome(selected: selected, action: action) {
             ZStack {
                 HStack(spacing: 12) {
                     Text(lang.flagEmoji)
@@ -544,16 +576,7 @@ private struct LanguagePickerDialog: View {
                     }
                 }
             }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity)
-            .frame(height: popupButtonHeight)
-            .background(selected ? selectedFill : buttonSurface, in: RoundedRectangle(cornerRadius: popupButtonCorner))
-            .overlay(
-                RoundedRectangle(cornerRadius: popupButtonCorner)
-                    .stroke(selected ? selectedStroke : buttonStroke, lineWidth: selected ? 2 : 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -589,7 +612,8 @@ private struct FontPickerDialog: View {
                 onDismiss()
             },
             onApply: onDismiss,
-            previewTopPadding: language == .hebrew ? 24 : 36
+            previewTopPadding: language == .hebrew ? 24 : 36,
+            showsPreviewDivider: language != .hebrew
         ) {
             ScrollView {
                 VStack(spacing: popupButtonGap) {
@@ -614,6 +638,7 @@ private struct FontPickerDialog: View {
                     Rectangle()
                         .fill(buttonStroke)
                         .frame(height: 1)
+                        .padding(.top, 16)
                     Button {
                         guard nikudSupported else { return }
                         settings.updateHebrewNikud(!settings.hebrewNikud)
@@ -659,7 +684,7 @@ private struct FontPickerDialog: View {
         selected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        SelectionRowChrome(selected: selected, action: action) {
             ZStack {
                 Text(opt.label(for: language))
                     .font(opt.menuPreviewFont(size: 17, language: language))
@@ -675,16 +700,7 @@ private struct FontPickerDialog: View {
                     }
                 }
             }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity)
-            .frame(height: popupButtonHeight)
-            .background(selected ? selectedFill : buttonSurface, in: RoundedRectangle(cornerRadius: popupButtonCorner))
-            .overlay(
-                RoundedRectangle(cornerRadius: popupButtonCorner)
-                    .stroke(selected ? selectedStroke : buttonStroke, lineWidth: selected ? 2 : 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 }
 
