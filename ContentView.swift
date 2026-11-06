@@ -2,14 +2,19 @@
 //  ContentView.swift
 //  AlphaTime
 //
-//  Created by EVYATAR DAYAN on 2026-02-18.
-//
 
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var settings = SettingsStore.shared
+    @State private var showWordClock = false
+
     var body: some View {
-        WelcomeView()
+        WelcomeView(settings: settings, onShowtime: { showWordClock = true })
+            .fullScreenCover(isPresented: $showWordClock) {
+                WordClockView(settings: settings)
+            }
+            .statusBarHidden(true)
     }
 }
 
